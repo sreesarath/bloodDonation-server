@@ -18,6 +18,15 @@ const requestSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    startDate:{
+     type:Date,
+     required:true
+    },
+    endDate:{
+     type:Date,
+     required:true
+    },
+    
     acceptedCount: {
         type: Number,
         default: 0
@@ -37,7 +46,8 @@ const requestSchema = new mongoose.Schema({
         {
             donorId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
             status: { type: String, enum: ["accepted", "rejected"], default: "accepted" },
-            reason: String
+            reason: String,
+            scheduledDate:Date
         }
     ],
     location: {

@@ -6,12 +6,12 @@ const mongoose = require('mongoose')
 
 // create request
 exports.createRequest = async (req, res) => {
-    const { hospital, bloodgroup, unitsNeeded, lat, lng } = req.body
+    const { hospital, bloodgroup, unitsNeeded, lat, lng, startDate, endDate } = req.body
     const userId = req.user._id;
     try {
         //create the request
         const newRequest = new Request({
-            userId, hospital, bloodgroup, unitsNeeded,
+            userId, hospital, bloodgroup, unitsNeeded, startDate, endDate,
             location: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] }
         });
         await newRequest.save()
@@ -94,7 +94,7 @@ exports.getNearbyDonors = async (req, res) => {
 exports.getMyrequests = async (req, res) => {
     try {
         const requests = await Request.find({ userId: req.user._id })
-            .populate("acceptedDonors.donorId", "name mobile");
+            .populate("acceptedDonors.donorId", "name phone");
 
         const formatted = requests.map(r => ({
             ...r._doc,
@@ -102,7 +102,8 @@ exports.getMyrequests = async (req, res) => {
                 .filter(d => d.status === "accepted")
                 .map(d => ({
                     name: d.donorId?.name,
-                    mobile: d.donorId?.mobile
+                    phone: d.donorId?.phone,
+                    date: d.scheduledDate
                 }))
         }));
 
@@ -145,10 +146,13 @@ exports.getNearbyRequests = async (req, res) => {
         if (!donor) {
             return res.status(400).json({ message: "You are not a registered donor" });
         }
+        const today = new Date()
         const requests = await Request.find({
             userId: { $ne: req.user._id }, // can not see  my own requests
             //  MATCH BLOOD GROUP
             bloodgroup: donor.bloodgroup,
+            
+            endDate: { $gte: today },
 
             location: {
                 $near: {
@@ -165,7 +169,19 @@ exports.getNearbyRequests = async (req, res) => {
 exports.acceptRequest = async (req, res) => {
     try {
         const requestId = req.params.id;
+        const { scheduledDate } = req.body
+                const data = await Request.findById(requestId);
+        if (!data) {
+  return res.status(404).json({ message: "Request not found" });
+}
+        //valid date inside the range
 
+        if (
+            new Date(scheduledDate) < new Date(data.startDate) ||
+            new Date(scheduledDate) > new Date(data.endDate)
+        ) {
+            return res.status(400).json({ message: "Selected date is outside allowed range" });
+        }
         //  validate id
         if (!mongoose.Types.ObjectId.isValid(requestId)) {
             return res.status(400).json({ message: "Invalid request ID" });
@@ -191,11 +207,14 @@ exports.acceptRequest = async (req, res) => {
         //  add donor
         request.acceptedDonors.push({
             donorId: req.user._id,
-            status: "accepted"
+            status: "accepted",
+            scheduledDate
         });
 
         request.acceptedCount += 1;
-
+        if (request.acceptedCount >= request.unitsNeeded) {
+            request.status = "completed";
+        }
         await request.save();
 
         //  socket emit
