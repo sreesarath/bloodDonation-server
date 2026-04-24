@@ -14,10 +14,10 @@ const checkEligibility = (lastDonatedDate) => {
 // 1. REGISTER DONOR
 exports.registerDonor = async (req, res) => {
     try {
-        const { bloodgroup, weight, mobile, lastDonated, lat, lng,gender } = req.body;
+        const { bloodgroup, weight, phone, lastDonated, lat, lng,gender } = req.body;
 
         // Basic Validation
-        if (!bloodgroup || !mobile || !lat || !lng || !gender) {
+        if (!bloodgroup || !phone || !lat || !lng || !gender) {
             return res.status(400).json({ message: "All required fields must be provided" });
         }
 
@@ -33,7 +33,7 @@ exports.registerDonor = async (req, res) => {
         const newDonor = await Donor.create({
             userId: req.user._id,
             bloodgroup,
-            mobile,
+            phone,
             gender,
             weight,
             lastDonated,

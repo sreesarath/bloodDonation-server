@@ -31,7 +31,7 @@ const requestSchema = new mongoose.Schema({
     donors: [{
         name: String,
         email: String,
-        mobile: String,
+        phone: String,
     }],
     acceptedDonors: [
         {
