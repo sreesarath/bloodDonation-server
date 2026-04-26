@@ -26,6 +26,8 @@ router.get('/nearby-request',protect,requestController.getNearbyRequests)
 router.delete('/delete-request/:id',protect,requestController.deleteRequest)
 router.put('/accept-request/:id',protect,requestController.acceptRequest)
 router.put('/reject-request/:id',protect,requestController.rejectRequest)
+router.put('/complete-donation/:id',protect,requestController.completeDonation)
+router.put('/rate-donor/:id',protect,requestController.rateDonors)
 
 
 

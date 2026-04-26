@@ -18,22 +18,22 @@ const requestSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    startDate:{
-     type:Date,
-     required:true
+    startDate: {
+        type: Date,
+        required: true
     },
-    endDate:{
-     type:Date,
-     required:true
+    endDate: {
+        type: Date,
+        required: true
     },
-    
+
     acceptedCount: {
         type: Number,
         default: 0
     },
     status: {
         type: String,
-
+        enum: ["pending", "completed", "expired"],
         default: "pending"
     },
 
@@ -45,9 +45,11 @@ const requestSchema = new mongoose.Schema({
     acceptedDonors: [
         {
             donorId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
-            status: { type: String, enum: ["accepted", "rejected"], default: "accepted" },
+            status: { type: String, enum: ["accepted", "rejected", "completed"], default: "accepted" },
             reason: String,
-            scheduledDate:Date
+            scheduledDate: Date,
+            rating: { type: Number, min: 1, max: 5 },
+            review: String
         }
     ],
     location: {
