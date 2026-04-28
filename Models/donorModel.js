@@ -26,6 +26,12 @@ const donorSchema=new mongoose.Schema({
     lastDonated:{
         type: Date
     },
+
+    badge: {
+    type: String,
+    default: "New Donor"
+    // New Donor | Active Donor | Hero Donor
+  },
     location:{
         type:{
             type:String,

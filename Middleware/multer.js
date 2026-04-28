@@ -4,7 +4,7 @@ const path=require('path')
 
 
 
-const uploadpath=path.join(__dirname,'..uploads')
+const uploadpath=path.join(__dirname,'../uploads')
 
 // create the upload folder
 

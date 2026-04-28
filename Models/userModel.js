@@ -15,9 +15,13 @@ const userSchema= new mongoose.Schema({
         required:true
     }
     ,phone:{
-        type:Number,
+        type:String,
         required:true
     },
+        secondaryPhone:{
+        type:String
+    },
+ 
     bio:{
         type:String,
         default:"I am BloodFinder user!!"

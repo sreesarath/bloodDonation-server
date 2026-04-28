@@ -4,7 +4,7 @@ const router=expres.Router()
 const {registerUser,loginUser}=require('../Controller/userController')
 const protect = require('../Middleware/AuthMiddleware')
 const upload = require('../Middleware/multer')
-const { registerDonor, getAllDonors } = require('../Controller/donorController')
+const { registerDonor, getAllDonors, getMyProfile, updateProfile, uploadProfileImage, deleteAccount, toggleAvailability, getDonorById } = require('../Controller/donorController')
 const requestController=require('../Controller/requestController')
 
 
@@ -28,6 +28,15 @@ router.put('/accept-request/:id',protect,requestController.acceptRequest)
 router.put('/reject-request/:id',protect,requestController.rejectRequest)
 router.put('/complete-donation/:id',protect,requestController.completeDonation)
 router.put('/rate-donor/:id',protect,requestController.rateDonors)
+
+//profile
+router.get('/getmyprofile',protect,getMyProfile)
+router.put('/updateprofile',protect,updateProfile)
+router.post('/uploadImg',protect,upload.single('profile'),uploadProfileImage)
+router.delete('/delete-account',protect,deleteAccount)
+router.patch('/toggle',protect,toggleAvailability)
+
+router.get('/donorProfile/:id',protect,getDonorById)
 
 
 
