@@ -8,15 +8,17 @@ const mongoose = require('mongoose')
 exports.createRequest = async (req, res) => {
     const { hospital, bloodgroup, unitsNeeded, lat, lng, startDate, endDate } = req.body
     if (!hospital || !bloodgroup || !unitsNeeded || !lat || !lng) {
-    return res.status(400).json({ message: "Missing required fields" });
-}
+        return res.status(400).json({ message: "Missing required fields" });
+    }
 
-if (!startDate || !endDate) {
-    return res.status(400).json({ message: "Start and End dates required" });
-}
+    if (!startDate || !endDate) {
+        return res.status(400).json({ message: "Start and End dates required" });
+    }
     const userId = req.user._id;
     try {
         //create the request
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 90);
         const newRequest = new Request({
             userId, hospital, bloodgroup, unitsNeeded, startDate, endDate,
             location: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] }
@@ -24,8 +26,9 @@ if (!startDate || !endDate) {
         await newRequest.save()
         // find the matching donor
         const matchingDonors = await Donor.find({
-
+            
             bloodgroup: bloodgroup,
+            status: "approved",
             isEligible: true,
             location: {
                 $near: {
@@ -36,6 +39,12 @@ if (!startDate || !endDate) {
         }).populate('userId');
         const io = req.app.get('io');
         matchingDonors.forEach(donor => {
+                const last = donor.lastDonated;
+
+    const eligible =
+        !last || new Date(last) <= cutoff;
+
+    if (!eligible) return;
             const donorId = donor.userId._id.toString();
             // Check if this donor has an active socketId
 
@@ -64,6 +73,8 @@ exports.getNearbyDonors = async (req, res) => {
         if (!lat || !lng) {
             return res.status(400).json({ message: "Latitude and Longitude are required" });
         }
+        const cutoff = new Date()
+        cutoff.setDate(cutoff.getDate() - 90)
 
         // 2. Build the query
         const query = {
@@ -82,10 +93,17 @@ exports.getNearbyDonors = async (req, res) => {
         if (bloodgroup) {
             query.bloodgroup = bloodgroup;
         }
+        query.$or = [
+            { lastDonated: { $exists: false } },
+            { lastDonated: { $lte: cutoff } }
+        ];
 
         // 4. Execute query
+
+
         const donors = await Donor.find(query)
             .populate("userId", "name email profile"); // Populate donor info
+
 
         res.status(200).json({
             success: true,
@@ -106,7 +124,7 @@ exports.getMyrequests = async (req, res) => {
         const formatted = requests.map(r => ({
             ...r._doc,
             donors: r.acceptedDonors.map(d => ({
-                requestId: r._id, 
+                requestId: r._id,
                 donorId: d.donorId?._id,
                 name: d.donorId?.name,
                 phone: d.donorId?.phone || "N/A",
@@ -147,7 +165,13 @@ exports.deleteRequest = async (req, res) => {
 };
 exports.getNearbyRequests = async (req, res) => {
     try {
+        const isEligible = (lastDonated) => {
+            if (!lastDonated) return true
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
 
+    return new Date(lastDonated) <= cutoff;
+        }
         const { lat, lng } = req.query;
         if (!lat || !lng) {
             return res.status(400).json({ message: "Location required" });
@@ -155,6 +179,14 @@ exports.getNearbyRequests = async (req, res) => {
         const donor = await Donor.findOne({ userId: req.user._id });
         if (!donor) {
             return res.status(400).json({ message: "You are not a registered donor" });
+        }
+        const eligible = isEligible(donor.lastDonated)
+        if (!eligible) {
+            return res.status(200).json({
+                success: true,
+                data: [],
+                message: "You are not eligible to receive requests (90-day rule)"
+            });
         }
         const today = new Date()
         await Request.updateMany(
@@ -178,7 +210,7 @@ exports.getNearbyRequests = async (req, res) => {
                 }
             }
         }).populate("userId", "name phone")
-        .populate("acceptedDonors.donorId", "_id name phone ");
+            .populate("acceptedDonors.donorId", "_id name phone ");
         res.status(200).json({ success: true, data: requests });
     } catch (err) {
         res.status(500).json({ message: "Error fetching nearby requests" });
@@ -370,3 +402,36 @@ exports.rateDonors = async (req, res) => {
 //         res.status(500).json({ message: err.message });
 //     }
 // };
+
+exports.getDonorsAvgRating=async(req,res)=>{
+    try {
+        const donorId=req.params.id
+        const result=await Request.aggregate([
+            {$unwind : "$acceptedDonors"},
+            {
+                $match:{
+                    "acceptedDonors.donorId":new mongoose.Types.ObjectId(donorId),
+                    "acceptedDonors.rating":{$exists:true}
+                }
+            },{
+                $group:{
+                    _id:"$acceptedDonors.donorId",
+                    avgRating:{$avg:"$acceptedDonors.rating"},
+                    totalRatings:{$sum:1}
+                }
+            }
+        ])
+        if (!result.length) {
+            return res.status(200).json({
+                avgRating:0,
+                totalRatings:0
+            })
+        }
+        res.status(200).json(result[0])
+        
+    } catch (err) {
+        console.log(err);
+        res.status(500).json(err)
+        
+    }
+}

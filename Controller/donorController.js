@@ -18,6 +18,7 @@ const checkEligibility = (lastDonatedDate) => {
 exports.registerDonor = async (req, res) => {
     try {
         const { bloodgroup, weight, phone, lastDonated, lat, lng, gender } = req.body;
+        const io = req.app.get("io");
 
         // Basic Validation
         if (!bloodgroup || !phone || !lat || !lng || !gender) {
@@ -41,11 +42,16 @@ exports.registerDonor = async (req, res) => {
             weight,
             lastDonated,
             idProof: req.file ? req.file.path : "",
-            isEligible,
+            isEligible: isEligible,
+            status: "pending",
             location: {
                 type: "Point",
                 coordinates: [parseFloat(lng), parseFloat(lat)]
             }
+        });
+        io.emit("newDonorRequest", {
+            message: "New donor registration request",
+            donor: newDonor
         });
 
         res.status(201).json({
@@ -63,7 +69,7 @@ exports.registerDonor = async (req, res) => {
 // 2. GET ALL DONORS
 exports.getAllDonors = async (req, res) => {
     try {
-        const donors = await Donor.find()
+        const donors = await Donor.find({status:"approved"})
             .populate("userId", "name email profile") // Added profile to population
             .sort({ createdAt: -1 }); // Show newest donors first
 
@@ -126,10 +132,11 @@ exports.getMyProfile = async (req, res) => {
             data: {
                 ...user._doc,
                 bloodgroup: donor?.bloodgroup,
-                lastDonated:lastDonated,
+                lastDonated: lastDonated,
                 isEligible: isEligible,
+                status: donor?.status,
                 totalDonation,
-                 badge
+                badge
             }
         })
     } catch (err) {
@@ -139,101 +146,101 @@ exports.getMyProfile = async (req, res) => {
     }
 
 }
-exports.updateProfile=async(req,res)=>{
+exports.updateProfile = async (req, res) => {
     try {
-        const userId=req.user._id
-        const {name,phone,secondaryPhone,bloodgroup}=req.body
-        await User.findByIdAndUpdate(userId,{
-            name,phone,secondaryPhone   
+        const userId = req.user._id
+        const { name, phone, secondaryPhone, bloodgroup } = req.body
+        await User.findByIdAndUpdate(userId, {
+            name, phone, secondaryPhone
         })
         await Donor.findOneAndUpdate(
-            {userId},
-            {bloodgroup}
+            { userId },
+            { bloodgroup }
         )
         res.status(200).json({ message: "Profile updated" });
     } catch (err) {
         console.log(err);
         res.status(500).json(err)
-        
+
     }
 }
 exports.uploadProfileImage = async (req, res) => {
-      if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded" });
-  }
+    if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+    }
 
-  const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+    const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
 
-  await User.findByIdAndUpdate(req.user._id, {
-    profile: imageUrl
-  });
+    await User.findByIdAndUpdate(req.user._id, {
+        profile: imageUrl
+    });
 
-  res.json({ image: imageUrl });
+    res.json({ image: imageUrl });
 };
 exports.deleteAccount = async (req, res) => {
-  const userId = req.user._id;
+    const userId = req.user._id;
 
-  await User.findByIdAndDelete(userId);
-  await Donor.findOneAndDelete({ userId });
+    await User.findByIdAndDelete(userId);
+    await Donor.findOneAndDelete({ userId });
 
-  res.json({ message: "Account deleted" });
+    res.json({ message: "Account deleted" });
 };
 exports.toggleAvailability = async (req, res) => {
-  const donor = await Donor.findOne({ userId: req.user._id });
+    const donor = await Donor.findOne({ userId: req.user._id });
 
-  const isEligible=checkEligibility(donor.lastDonated)
-  if (!isEligible) {
-       return res.status(400).json({
-      message: "You are not eligible yet (90-day rule)"
-    });
-  }
-  donor.isEligible= ! donor.isEligible
+    const isEligible = checkEligibility(donor.lastDonated)
+    if (!isEligible) {
+        return res.status(400).json({
+            message: "You are not eligible yet (90-day rule)"
+        });
+    }
+    donor.isEligible = !donor.isEligible
 
 
 
-  await donor.save();
+    await donor.save();
 
-  res.json({ isEligible: donor.isEligible });
+    res.json({ isEligible: donor.isEligible });
 };
-exports.getDonorById=async(req,res)=>{
+exports.getDonorById = async (req, res) => {
     try {
-        const userId=req.params.id
-        const user=await User.findById(userId)
-        const donor=await Donor.findOne({userId})
-         
-        const lastDonationDate=await Request.aggregate([
-            {$unwind:"$acceptedDonors"},
+        const userId = req.params.id
+        const user = await User.findById(userId)
+        const donor = await Donor.findOne({ userId })
+
+        const lastDonationDate = await Request.aggregate([
+            { $unwind: "$acceptedDonors" },
             {
-       
-                $match:{
-                    "acceptedDonors.donorId":new mongoose.Types.ObjectId(userId),
-                    "acceptedDonors.status":"completed"
+
+                $match: {
+                    "acceptedDonors.donorId": new mongoose.Types.ObjectId(userId),
+                    "acceptedDonors.status": "completed"
                 }
-            },{$sort:{"acceptedDonors.scheduledDate":-1}},
-            {$limit:1},
+            }, { $sort: { "acceptedDonors.scheduledDate": -1 } },
+            { $limit: 1 },
             { $project: { lastDate: "$acceptedDonors.scheduledDate" } }
         ])
 
         const lastDonated =
-      lastDonationDate.length > 0
-        ? lastDonationDate[0].lastDate
-        : donor?.lastDonated;
+            lastDonationDate.length > 0
+                ? lastDonationDate[0].lastDate
+                : donor?.lastDonated;
 
-    const isEligible = checkEligibility(lastDonated);
+        const isEligible = checkEligibility(lastDonated);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        ...donor._doc,
-        userId: user,
-        lastDonated,
-        isEligible
-      }
-    });
-        
+        res.status(200).json({
+            success: true,
+            data: {
+                ...donor._doc,
+                userId: user,
+                lastDonated,
+                isEligible
+            }
+        });
+
     } catch (err) {
         console.log(err);
         res.status(500).json(err)
-        
+
     }
 }

@@ -1,11 +1,12 @@
 const expres=require('express')
-
+const Donor=require('../Models/donorModel')
 const router=expres.Router()
 const {registerUser,loginUser}=require('../Controller/userController')
 const protect = require('../Middleware/AuthMiddleware')
 const upload = require('../Middleware/multer')
 const { registerDonor, getAllDonors, getMyProfile, updateProfile, uploadProfileImage, deleteAccount, toggleAvailability, getDonorById } = require('../Controller/donorController')
 const requestController=require('../Controller/requestController')
+const adminController=require('../Controller/adminController')
 
 
 //user authentication
@@ -28,6 +29,7 @@ router.put('/accept-request/:id',protect,requestController.acceptRequest)
 router.put('/reject-request/:id',protect,requestController.rejectRequest)
 router.put('/complete-donation/:id',protect,requestController.completeDonation)
 router.put('/rate-donor/:id',protect,requestController.rateDonors)
+router.get('/avgRating/:id',protect,requestController.getDonorsAvgRating)
 
 //profile
 router.get('/getmyprofile',protect,getMyProfile)
@@ -37,6 +39,20 @@ router.delete('/delete-account',protect,deleteAccount)
 router.patch('/toggle',protect,toggleAvailability)
 
 router.get('/donorProfile/:id',protect,getDonorById)
+
+//admin
+
+router.get('/adminDash',protect,adminController.getAdminDash)
+router.get('/admin-report',protect,adminController.generateReport)
+router.put('/admin-approved/:id',protect,adminController.approveDonor)
+router.put('/admin-rejected/:id',protect,adminController.rejectedDonor)
+router.get('/pending-donors', protect, async (req, res) => {
+    const donors = await Donor.find({ status: "pending" })
+        .populate("userId", "name email");
+
+    res.json({ data: donors });
+});
+
 
 
 
