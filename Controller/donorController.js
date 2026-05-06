@@ -17,7 +17,8 @@ const checkEligibility = (lastDonatedDate) => {
 // 1. REGISTER DONOR
 exports.registerDonor = async (req, res) => {
     try {
-        const { bloodgroup, weight, phone, lastDonated, lat, lng, gender } = req.body;
+        const { bloodgroup, weight, phone, lastDonated, lat, lng, gender, hasDisease, donatedBefore, donationCount,
+            isOnMedication, hasAllergies, traveledAbroad } = req.body;
         const io = req.app.get("io");
 
         // Basic Validation
@@ -40,6 +41,12 @@ exports.registerDonor = async (req, res) => {
             phone,
             gender,
             weight,
+            hasDisease,
+            donatedBefore,
+            donationCount: Number(donationCount) || 0,
+            isOnMedication,
+            hasAllergies,
+            traveledAbroad,
             lastDonated,
             idProof: req.file ? req.file.path : "",
             isEligible: isEligible,
@@ -69,7 +76,7 @@ exports.registerDonor = async (req, res) => {
 // 2. GET ALL DONORS
 exports.getAllDonors = async (req, res) => {
     try {
-        const donors = await Donor.find({status:"approved"})
+        const donors = await Donor.find({ status: "approved" })
             .populate("userId", "name email profile") // Added profile to population
             .sort({ createdAt: -1 }); // Show newest donors first
 

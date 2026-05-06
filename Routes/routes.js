@@ -7,6 +7,8 @@ const upload = require('../Middleware/multer')
 const { registerDonor, getAllDonors, getMyProfile, updateProfile, uploadProfileImage, deleteAccount, toggleAvailability, getDonorById } = require('../Controller/donorController')
 const requestController=require('../Controller/requestController')
 const adminController=require('../Controller/adminController')
+const { createComplaints, respondComplaint, getDonorComplaints, getMyComplaints, escalateComplaint, resolveComplaint, getAdminComplaints, adminAction } = require('../Controller/complaintController')
+
 
 
 //user authentication
@@ -53,6 +55,18 @@ router.get('/pending-donors', protect, async (req, res) => {
     res.json({ data: donors });
 });
 
+router.delete('/delete-donor/:id',protect,adminController.deleteDonor)
+
+//complaint
+
+router.post('/create-complaint',protect,createComplaints)
+router.put('/respond-complaint/:id',protect,respondComplaint)
+router.get('/donor-complaint',protect,getDonorComplaints)
+router.get('/my-complaints',protect,getMyComplaints)
+router.put('/escalate-complaint/:id', protect, escalateComplaint);
+router.put('/resolve-complaint/:id', protect, resolveComplaint);
+router.get('/admin-complaint', protect, getAdminComplaints);
+router.put('/admin-action/:id', protect, adminAction);
 
 
 

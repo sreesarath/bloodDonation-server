@@ -54,7 +54,31 @@ const donorSchema = new mongoose.Schema({
     isEligible: {
         type: Boolean,
         default: true
-    }
+    },
+    hasDisease:{
+        type:String,
+        enum:["Yes","No"]
+    },
+       donationCount: {
+        type: Number,
+        default: 0
+    },
+        isOnMedication:{
+        type:String,
+        enum:["Yes","No"]
+    },
+        hasAllergies:{
+        type:String,
+        enum:["Yes","No"]
+    },
+        donatedBefore:{
+        type:String,
+        enum:["Yes","No"]
+    },
+        traveledAbroad:{
+        type:String,
+        enum:["Yes","No"]
+    },
 }, { timestamps: true })
 donorSchema.index({ location: "2dsphere" })
 module.exports = mongoose.model('donor', donorSchema)

@@ -171,3 +171,13 @@ exports.rejectedDonor = async (req, res) => {
 
     }
 }
+exports.deleteDonor=async(req,res)=>{
+    try {
+        const {id}=req.params
+        await Donor.findByIdAndDelete(id)
+        res.status(200).json({message:"Donor Removed Successfully"})
+    } catch (err) {
+        console.log(err);
+        res.status(500).json(err)
+    }
+}
