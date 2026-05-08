@@ -1,7 +1,7 @@
 const expres=require('express')
 const Donor=require('../Models/donorModel')
 const router=expres.Router()
-const {registerUser,loginUser}=require('../Controller/userController')
+const {registerUser,loginUser, sendOtp, verifyOtp}=require('../Controller/userController')
 const protect = require('../Middleware/AuthMiddleware')
 const upload = require('../Middleware/multer')
 const { registerDonor, getAllDonors, getMyProfile, updateProfile, uploadProfileImage, deleteAccount, toggleAvailability, getDonorById } = require('../Controller/donorController')
@@ -67,6 +67,8 @@ router.put('/escalate-complaint/:id', protect, escalateComplaint);
 router.put('/resolve-complaint/:id', protect, resolveComplaint);
 router.get('/admin-complaint', protect, getAdminComplaints);
 router.put('/admin-action/:id', protect, adminAction);
+router.post('/otp-send', sendOtp);
+router.post('/otp-verification', verifyOtp);
 
 
 

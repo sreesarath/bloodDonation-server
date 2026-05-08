@@ -33,7 +33,18 @@ const userSchema= new mongoose.Schema({
     role:{
         type:String,
         default:"User"
-    }
-})
+    },
+    isVerified:{
+      type:Boolean,
+      default:false
+    },
+    otp:{
+      type:String
+    },
+    otpExpiry:{
+      type:Date,
+      default:null
+    },
+},{ timestamps: true })
 const users=mongoose.model('user',userSchema)
 module.exports=users

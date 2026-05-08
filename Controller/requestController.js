@@ -26,7 +26,7 @@ exports.createRequest = async (req, res) => {
         await newRequest.save()
         // find the matching donor
         const matchingDonors = await Donor.find({
-            
+
             bloodgroup: bloodgroup,
             status: "approved",
             isEligible: true,
@@ -39,12 +39,12 @@ exports.createRequest = async (req, res) => {
         }).populate('userId');
         const io = req.app.get('io');
         matchingDonors.forEach(donor => {
-                const last = donor.lastDonated;
+            const last = donor.lastDonated;
 
-    const eligible =
-        !last || new Date(last) <= cutoff;
+            const eligible =
+                !last || new Date(last) <= cutoff;
 
-    if (!eligible) return;
+            if (!eligible) return;
             const donorId = donor.userId._id.toString();
             // Check if this donor has an active socketId
 
@@ -167,10 +167,10 @@ exports.getNearbyRequests = async (req, res) => {
     try {
         const isEligible = (lastDonated) => {
             if (!lastDonated) return true
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 90);
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - 90);
 
-    return new Date(lastDonated) <= cutoff;
+            return new Date(lastDonated) <= cutoff;
         }
         const { lat, lng } = req.query;
         if (!lat || !lng) {
@@ -221,34 +221,39 @@ exports.acceptRequest = async (req, res) => {
         const requestId = req.params.id;
         const { scheduledDate } = req.body;
 
-        // ✅ validate id FIRST
+        //  validate id FIRST
         if (!mongoose.Types.ObjectId.isValid(requestId)) {
             return res.status(400).json({ message: "Invalid request ID" });
         }
 
-        // ✅ validate date
+        //  validate date
         if (!scheduledDate) {
             return res.status(400).json({ message: "Scheduled date is required" });
         }
 
-        // ✅ fetch request ONCE
+        //  fetch request ONCE
         const request = await Request.findById(requestId).populate("userId");
 
         if (!request) {
             return res.status(404).json({ message: "Request not found" });
         }
 
-        // ✅ validate date range
+        //  validate date range
         const selected = new Date(scheduledDate);
+        const start = new Date(request.startDate);
+        const end = new Date(request.endDate);
 
-        if (
-            selected < new Date(request.startDate) ||
-            selected > new Date(request.endDate)
-        ) {
+        // normalize all to SAME level
+        selected.setHours(0, 0, 0, 0);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+
+        // now compare
+        if (selected < start || selected > end) {
             return res.status(400).json({ message: "Selected date is outside allowed range" });
         }
 
-        // ✅ prevent duplicate
+        //  prevent duplicate
         const already = request.acceptedDonors.find(
             d => d.donorId?.toString() === req.user._id.toString()
         );
@@ -257,7 +262,7 @@ exports.acceptRequest = async (req, res) => {
             return res.status(400).json({ message: "Already responded" });
         }
 
-        // ✅ add donor
+        //  add donor
         request.acceptedDonors.push({
             donorId: req.user._id,
             status: "accepted",
@@ -272,7 +277,7 @@ exports.acceptRequest = async (req, res) => {
 
         await request.save();
 
-        // ✅ socket emit
+        //  socket emit
         const io = req.app.get("io");
         io.to(request.userId._id.toString()).emit("requestAccepted", {
             requestId: request._id
@@ -403,35 +408,35 @@ exports.rateDonors = async (req, res) => {
 //     }
 // };
 
-exports.getDonorsAvgRating=async(req,res)=>{
+exports.getDonorsAvgRating = async (req, res) => {
     try {
-        const donorId=req.params.id
-        const result=await Request.aggregate([
-            {$unwind : "$acceptedDonors"},
+        const donorId = req.params.id
+        const result = await Request.aggregate([
+            { $unwind: "$acceptedDonors" },
             {
-                $match:{
-                    "acceptedDonors.donorId":new mongoose.Types.ObjectId(donorId),
-                    "acceptedDonors.rating":{$exists:true}
+                $match: {
+                    "acceptedDonors.donorId": new mongoose.Types.ObjectId(donorId),
+                    "acceptedDonors.rating": { $exists: true }
                 }
-            },{
-                $group:{
-                    _id:"$acceptedDonors.donorId",
-                    avgRating:{$avg:"$acceptedDonors.rating"},
-                    totalRatings:{$sum:1}
+            }, {
+                $group: {
+                    _id: "$acceptedDonors.donorId",
+                    avgRating: { $avg: "$acceptedDonors.rating" },
+                    totalRatings: { $sum: 1 }
                 }
             }
         ])
         if (!result.length) {
             return res.status(200).json({
-                avgRating:0,
-                totalRatings:0
+                avgRating: 0,
+                totalRatings: 0
             })
         }
         res.status(200).json(result[0])
-        
+
     } catch (err) {
         console.log(err);
         res.status(500).json(err)
-        
+
     }
 }
